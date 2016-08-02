@@ -1,13 +1,13 @@
 title: An Archaeology-Inspired Database
 author: Yoav Rubin
-
+<markdown>
 _Yoav Rubin is a Senior Software Engineer at Microsoft, and prior to that was a Research Staff Member and a Master Inventor at IBM Research. He works now in the domain of data security in the cloud, and in the past his work focused on developing cloud or web based development environments. Yoav holds an M.Sc. in Medical Research in the field of Neuroscience and B.Sc in Information Systems Engineering. He goes by [\@yoavrubin](https://twitter.com/yoavrubin) on Twitter, and occasionally blogs at [http://yoavrubin.blogspot.com](http://yoavrubin.blogspot.com)._
+</markdown>
+## Introduction 
 
 Software development is often viewed as a rigorous process, where the inputs are requirements and the output is the working product. However, software developers are people, with their own perspectives and biases which color the outcome of their work. 
 
 In this chapter, we will explore how a change in a common perspective affects the design and implementation of a well-studied type of software: a database.
-
-## Introduction 
 
 Database systems are designed to store and query data. This is something that all information workers do; however, the systems themselves were designed by computer scientists. As a result, modern database systems are highly influenced by computer scientists’ definition of what data is, and what can be done with it. 
 
@@ -141,7 +141,7 @@ We will access the storage via a simple _protocol_, which will make it possible 
    (drop-entity [storage entity]))
 ```
 
-And here's our in-memory implementation of the protocol, which uses a map as the backing store:
+\noindent And here's our in-memory implementation of the protocol, which uses a map as the store:
 
 ```clojure
 (defrecord InMemory [] Storage
@@ -154,7 +154,7 @@ And here's our in-memory implementation of the protocol, which uses a map as the
 
 Now that we've defined the basic elements of our database, we can start thinking about how we're going to query it. By virtue of how we've structured our data, any query is necessarily going to be interested in at least one of an entity's ID, and the name and value of some of its attributes. This triplet of `(entity-id, attribute-name, attribute-value)` is important enough to our query process that we give it an explicit name: a _datom_.
 
-The reason that datoms are so important is that they represent facts, and our database accumulates facts. 
+Datoms are important because they represent facts, and our database accumulates facts. 
 
 If you've used a database system before, you are probably already familiar with the concept of an _index_, which is a supporting data structure that consumes extra space in order to decrease the average query time.  In our database, an index is a three-leveled structure which stores the components of a datom in a specific order. Each index derives its name from the order it stores the datom's components in.
 
@@ -308,6 +308,8 @@ Nile $\Rightarrow$ \{Egypt $\Rightarrow$ \{river\}\}                            
 \end{table}
 </latex>
 
+\newpage
+
 ### Database
 
 We now have all the components we need to construct our database. Initializing our database means:
@@ -325,10 +327,10 @@ We now have all the components we need to construct our database. Initializing o
    (atom 
        (Database. [(Layer.
                    (fdb.storage.InMemory.) ; storage
-                   (make-index #(vector %3 %2 %1) #(vector %3 %2 %1) #(ref? %)); VAET                     
-                   (make-index #(vector %2 %3 %1) #(vector %3 %1 %2) always); AVET                        
-                   (make-index #(vector %3 %1 %2) #(vector %2 %3 %1) always); VEAT                       
-                   (make-index #(vector %1 %2 %3) #(vector %1 %2 %3) always); EAVT
+                   (make-index #(vector %3 %2 %1) #(vector %3 %2 %1) #(ref? %));VAET                     
+                   (make-index #(vector %2 %3 %1) #(vector %3 %1 %2) always);AVET                        
+                   (make-index #(vector %3 %1 %2) #(vector %2 %3 %1) always);VEAT                       
+                   (make-index #(vector %1 %2 %3) #(vector %1 %2 %3) always);EAVT
                   )] 0 0)))
 ```
 There is one snag, though: all collections in Clojure are immutable. Since write operations are pretty critical in a database, we define our structure to be an *Atom*, which is a Clojure reference type that provides the capability of atomic writes. 
@@ -344,7 +346,7 @@ This lower-level API is composed of the following four accessor functions:
 ```clojure
 (defn entity-at
    ([db ent-id] (entity-at db (:curr-time db) ent-id))
-   ([db ts ent-id] (stored-entity (get-in db [:layers ts :storage]) ent-id)))
+   ([db ts ent-id] (get-entity (get-in db [:layers ts :storage]) ent-id)))
 
 (defn attr-at
    ([db ent-id attr-name] (attr-at db ent-id attr-name (:curr-time db)))
@@ -377,7 +379,7 @@ The function `evolution-of` does exactly that. It returns a sequence of pairs, e
 
 So far, our discussion has focused on the structure of our data: what the core components are and how they are aggregated together. It's time to explore the dynamics of our system: how data is changed over time through the add--update--remove _data lifecycle_. 
 
-As we've already discussed, data in an archaeologist's world never actually changes. Once it is created, it exists forever and can only be hidden from the world by data in a newer layer. The term "hidden" is crucial here. Older data does not "disappear" --- it is buried, and can be revealed again by exposing an older layer. Conversely, updating data means obscuring the old by adding a new layer on top of it with something else. We can thus "delete" data by adding a layer of "nothing" on top of it. 
+As we've already discussed, data in an archaeologist's world never actually changes. Once it is created, it exists forever and can only be hidden from the world by data in a newer layer. The term "hidden" is crucial here. Older data does not "disappear"&mdash;it is buried, and can be revealed again by exposing an older layer. Conversely, updating data means obscuring the old by adding a new layer on top of it with something else. We can thus "delete" data by adding a layer of "nothing" on top of it. 
 
 This means that when we talk about data lifecycle, we are really talking about adding layers to our data over time. 
 
@@ -432,12 +434,12 @@ These latter two helper functions are responsible for finding the next timestamp
          new-ts               (next-ts db)]
        [(update-creation-ts (assoc ent :id ent-id) new-ts) next-top-id]))
 ```
-To add the entity to storage, we locate the most recent layer in the database and update the storage in that layer with a new layer. The results of this operation are assigned to the `layer-with-updated-storage` local variable.
+To add the entity to storage, we locate the most recent layer in the database and update the storage in that layer with a new layer, the results of which are stored in `layer-with-updated-storage`. 
 
 Finally, we must update the indexes. This means, for each of the indexes (done by the combination of `reduce` and the `partial`-ed `add-entity-to-index` at the `add-entity` function):
 
 * Find the attributes that should be indexed (see the combination of `filter` with the index’s `usage-pred` that operates on the attributes in `add-entity-to-index`) 
-* Build an index-path from the the entity’s ID (see the combination of the `partial`-ed `update-entry-in-index` with `from-eav` at the `update-attr-in-index` function)
+* Build an index-path from the the entity’s ID (see the combination of the `partial`-ed \newline `update-entry-in-index` with `from-eav` at the `update-attr-in-index` function)
 * Add that path to the index (see the `update-entry-in-index` function)
 
 ```clojure
@@ -447,13 +449,18 @@ Finally, we must update the indexes. This means, for each of the indexes (done b
          all-attrs  (vals (:attrs ent))
          relevant-attrs (filter #((usage-pred index) %) all-attrs)
          add-in-index-fn (fn [ind attr] 
-                                 (update-attr-in-index ind ent-id (:name attr) (:value attr) :db/add))]
+                                 (update-attr-in-index ind ent-id (:name attr) 
+                                                                  (:value attr) 
+                                                                  :db/add))]
         (assoc layer ind-name  (reduce add-in-index-fn index relevant-attrs))))
 
 (defn- update-attr-in-index [index ent-id attr-name target-val operation]
    (let [colled-target-val (collify target-val)
-         update-entry-fn (fn [indx vl] 
-                                 (update-entry-in-index indx ((from-eav index) ent-id attr-name vl) operation))]
+         update-entry-fn (fn [ind vl] 
+                             (update-entry-in-index 
+                                ind 
+                                ((from-eav index) ent-id attr-name vl) 
+                                operation))]
      (reduce update-entry-fn index colled-target-val)))
      
 (defn- update-entry-in-index [index path operation]
@@ -522,14 +529,15 @@ As with `add-entity` and `remove-entity`, we won't actually be modifying our ent
 ```clojure
 (defn update-entity
    ([db ent-id attr-name new-val]
-    (update-entity db ent-id attr-name new-val :db/reset-to ))
+    (update-entity db ent-id attr-name new-val :db/reset-to))
    ([db ent-id attr-name new-val operation]
       (let [update-ts (next-ts db)
             layer (last (:layers db))
             attr (attr-at db ent-id attr-name)
             updated-attr (update-attr attr new-val update-ts operation)
-            fully-updated-layer (update-layer layer ent-id attr 
-                                                          updated-attr new-val operation)]
+            fully-updated-layer (update-layer layer ent-id 
+                                              attr updated-attr 
+                                              new-val operation)]
         (update-in db [:layers] conj fully-updated-layer))))
 ```
 To update an attribute, we locate it with `attr-at` and then use `update-attr` to perform the actual update. 
@@ -554,15 +562,18 @@ We use two helper functions to perform the update. `update-attr-modification-tim
    (cond
       (single? attr)    (assoc attr :value #{value})
       ; now we're talking about an attribute of multiple values
-      (= :db/reset-to operation)  (assoc attr :value value)
-      (= :db/add operation) (assoc attr :value (CS/union (:value attr) value))
-      (= :db/remove operation) (assoc attr :value (CS/difference (:value attr) value))))
+      (= :db/reset-to operation) 
+        (assoc attr :value value)
+      (= :db/add operation) 
+        (assoc attr :value (CS/union (:value attr) value))
+      (= :db/remove operation)
+        (assoc attr :value (CS/difference (:value attr) value))))
 ```
 All that remains is to remove the old value from the indexes and add the new one to them, and then construct the new layer with all of our updated components. Luckily, we can leverage the code we wrote for adding and removing entities to do this.
 
 ### Transactions
 
-Each of the operations in our low-level API acts on a single entity. However, nearly all databases have a mechanism for allowing users to perform multiple operations as a single _transaction_. <!--TODO/FIXME: Reference other chapters on transactional semantics here.--> This means: 
+Each of the operations in our low-level API acts on a single entity. However, nearly all databases have a way for users to do multiple operations as a single _transaction_. This means: 
 
 * The batch of operations is viewed as a single atomic operation, so all of the operations either succeed together or fail together.
 * The database is in a valid state before and after the transaction.
@@ -581,7 +592,9 @@ All this is done in the `transact-on-db` function, which receives the initial va
           (recur rst-ops (apply (first op) transacted (rest op)))
           (let [initial-layer  (:layers initial-db)
                 new-layer (last (:layers transacted))]
-            (assoc initial-db :layers (conj  initial-layer new-layer) :curr-time (next-ts initial-db) :top-id (:top-id transacted))))))
+            (assoc initial-db :layers (conj initial-layer new-layer) 
+                              :curr-time (next-ts initial-db) 
+                              :top-id (:top-id transacted))))))
 ``` 
 Note here that we used the term _value_, meaning that only the caller to this function is exposed to the updated state; all other users of the database are unaware of this change (as a database is a value, and therefore cannot change). 
 In order to have a system where users can be exposed to state changes performed by others, users do not interact directly with the database, but rather refer to it using another level of indirection. This additional level is implemented using Clojure's `Atom`, a reference type. Here we leverage the main three key features of an `Atom`, which are:
@@ -600,13 +613,13 @@ That transformation occurs in the following transaction call chain:
 transact →  _transact → swap! → transact-on-db
 ```
 
-Users call `transact` with the `Atom` (i.e., the database connection) and the operations to perform, which relays its input to `_transact`, adding to it the name of the function that updates the `Atom` (`swap!`).
+Users call `transact` with the `Atom` (i.e., the connection) and the operations to perform, which relays its input to `_transact`, adding to it the name of the function that updates the `Atom` (`swap!`).
 
 ```clojure
 (defmacro transact [db-conn & txs]  `(_transact ~db-conn swap! ~@txs))
 ```
 
-`_transact` prepares the call to `swap!`. It does so by creating a list that begins with `swap!`, followed by the db-connection (the `Atom`), then the `transact-on-db` symbol and the batch of operations.
+`_transact` prepares the call to `swap!`. It does so by creating a list that begins with `swap!`, followed by the `Atom`, then the `transact-on-db` symbol and the batch of operations.
 
 ```clojure
 (defmacro  _transact [db op & txs]
@@ -637,9 +650,7 @@ The user calls `what-if` with the database value and the operations to perform. 
  
 Note that we are not using functions, but macros. The reason for using macros here is that arguments to macros do not get evaluated as the call happens; this allows us to offer a cleaner API design where the user provides the operations structured in the same way that any function call is structured in Clojure. 
 
-The above process can be seen in the following examples.
-
-For Transaction, the user call: 
+The above process can be seen in the following examples. For Transaction, the user call: 
 ```clojure
 (transact db-conn  (add-entity e1) (update-entity e2 atr2 val2 :db/add))  
 ```
@@ -683,7 +694,9 @@ The information found in the VAET index can be leveraged to extract all the inco
 (defn incoming-refs [db ts ent-id & ref-names]
    (let [vaet (indx-at db :VAET ts)
          all-attr-map (vaet ent-id)
-         filtered-map (if ref-names (select-keys ref-names all-attr-map) all-attr-map)]
+         filtered-map (if ref-names 
+                          (select-keys ref-names all-attr-map) 
+                          all-attr-map)]
       (reduce into #{} (vals filtered-map))))
 ```
 We can also go through all of a given entity’s attributes and collect all the values of attributes of type `:db/ref`, and by that extract all the outgoing references from that entity. This is done by the `outgoing-refs` function.
@@ -707,14 +720,14 @@ Our data model is based on accumulation of facts (i.e., datoms) over time. For t
 
 ### Query Language
 
-Let's look at an example query in our proposed language. This query asks: "What are the names and birthday of entities who like pizza, speak English, and who have a birthday this month?"
+Let's look at an example query in our proposed language. This query asks: "What are the names and birthdays of entities who like pizza, speak English, and who have a birthday this month?"
 ```clojure
 {  :find [?nm ?bd ]
    :where [
       [?e  :likes "pizza"]
-      [?e  :name  ?nm] 
+      [?e  :name  ?nm]
       [?e  :speak "English"]
-      [?e  :birthday (birthday-this-month? ?bd)]]}
+      [?e  :bday (bday-mo? ?bd)]]}
 ```
 #### Syntax
 
@@ -722,8 +735,8 @@ We use the syntax of Clojure’s data literals directly to provide the basic syn
 
 A query is a map with two items:
 
-* An item with `:where` as a key, and with a _rule_ as a value. A rule is a vector of _clauses_, and a clause is a vector composed of three _predicates_, each of which operates on a different component of a datom.  In the example above, `[?e  :likes "pizza"]` is a clause.  This `:where` item defines a rule that acts as a filter on datoms in our database (like the 'WHERE' clause in a SQL query).
-* An item with `:find` as a key, and with a vector as a value. The vector defines which components of the selected datom should be projected into the results (like the 'SELECT' clause in a SQL query).
+* An item with `:where` as a key, and with a _rule_ as a value. A rule is a vector of _clauses_, and a clause is a vector composed of three _predicates_, each of which operates on a different component of a datom.  In the example above, `[?e  :likes "pizza"]` is a clause.  This `:where` item defines a rule that acts as a filter on datoms in our database (like a SQL `WHERE` clause.)
+* An item with `:find` as a key, and with a vector as a value. The vector defines which components of the selected datom should be projected into the results (like a SQL `SELECT` clause.)
 
 The description above omits a crucial requirement: how to make different clauses sync on a value (i.e., make a join operation between them), and how to structure the found values in the output (specified by the `:find` part). 
 
@@ -759,7 +772,7 @@ A clause in a query is composed of three predicates; \aosatblref{500l.functional
         Bind the datom's item's value to the variable (unless it's an '_').<br/>
         Replace the variable with the value of the item in the datom.<br/>
         Return the application of the operation.</td>
-    <td>(birthday-this-month? _)</td>
+    <td>(bday-mo? _)</td>
   </tr>
   <tr>
     <td>Binary operator</td>
@@ -781,11 +794,11 @@ A clause in a query is composed of three predicates; \aosatblref{500l.functional
 \hline
 \textbf{Name} & \textbf{Meaning} & \textbf{Example} \\
 \hline
-Constant & Is the value of the item in the datom equal to the constant? & \verb|:likes| \\
-Variable & Bind the value of the item in the datom to the variable and return true. & \verb|?e| \\
+Constant & Is the value of the datom item equal to the constant? & \verb|:likes| \\
+Variable & Bind the value of the datom item to the variable and return true. & \verb|?e| \\
 Don't-care & Always returns true. & \verb|_| \\
-Unary operator & \begin{tabular}{@{}l@{}} Unary operation that takes a variable as its operand. \\ Bind the datom's item's value to the variable (unless it's an \verb|_|). \\  Replace the variable with the value of the item in the datom. \\ Return the application of the operation. \end{tabular} & \verb|(birthday-this-month? _)| \\
-Binary operator & \begin{tabular}{@{}l@{}} A binary operation that must have a variable as one of its operands. \\ Bind the datom's item's value to the variable (unless it's an \verb|_|). \\ Replace the variable with the value of the item in the datom. \\ Return the result of the operation. \end{tabular} & \verb|(&gt; ?age 20)| \\
+Unary operator & \begin{tabular}{@{}l@{}} Unary operation that takes a variable as its operand. \\ Bind the datom's item's value to the variable (unless it's an \verb|_|). \\  Replace the variable with the value of the item in the datom. \\ Return the application of the operation. \end{tabular} & \verb|(bday-mo? _)| \\
+Binary operator & \begin{tabular}{@{}l@{}} A binary operation that requires a variable as an operand. \\ Bind the datom's item's value to the variable (unless it's an \verb|_|). \\ Replace the variable with the value of the item in the datom. \\ Return the result of the operation. \end{tabular} & \verb|(&gt; ?age 20)| \\
 \hline
 \end{tabular}
 }
@@ -796,7 +809,7 @@ Binary operator & \begin{tabular}{@{}l@{}} A binary operation that must have a v
 
 #### Limitations of our Query Language 
 
-Engineering is all about managing tradeoffs, and designing our query engine is no different. In our case, the first tradeoff we must make is feature-richness versus complexity. Resolving this tradeoff requires us to look at common use-cases of the system, and from there deciding what limitations would be acceptable. 
+Engineering is all about managing tradeoffs, and designing our query engine is no different. In our case, the main tradeoff we must address is feature-richness versus complexity. Resolving this tradeoff requires us to look at common use-cases of the system, and from there deciding what limitations would be acceptable. 
 
 In our database, we decided to build a query engine with the following limitations:
 
@@ -832,14 +845,19 @@ The `:where` part of the query retains its nested vector structure. However, eac
 ```clojure
 (defmacro clause-term-expr [clause-term]
    (cond
-    (variable? (str clause-term)) #(= % %) ; variable
-    (not (coll? clause-term)) `#(= % ~clause-term) ; constant
-    (= 2 (count clause-term)) `#(~(first clause-term) %) ; unary operator
-    (variable? (str (second clause-term))) `#(~(first clause-term) % ~(last clause-term)) ; binary operator, first operand is a variable
-    (variable? (str (last clause-term))) `#(~(first clause-term) ~(second clause-term) %))) ; binary operator, second operand is variable
+    (variable? (str clause-term)) ;variable
+      #(= % %) 
+    (not (coll? clause-term)) ;constant 
+      `#(= % ~clause-term) 
+    (= 2 (count clause-term)) ;unary operator
+      `#(~(first clause-term) %) 
+    (variable? (str (second clause-term)));binary operator, 1st operand is variable
+      `#(~(first clause-term) % ~(last clause-term))
+    (variable? (str (last clause-term)));binary operator, 2nd operand is variable
+      `#(~(first clause-term) ~(second clause-term) %)))
 ```
 
-Also, for each clause, a vector with the names of the variables used in that clause is set as its metadata. 
+For each clause, a vector with the variable names used in that clause is set as its metadata. 
 
 ```clojure
 (defmacro clause-term-meta [clause-term]
@@ -901,8 +919,8 @@ and the following structure in \aosatblref{500l.functionaldb.clauses} for the `:
 	<td>["?e" nil nil]</td>
 </tr>
 <tr>
-	<td>[?e  :birthday (birthday-this-month? ?bd)]</td>
-	<td>[#(= % %) #(= % :birthday) #(birthday-this-month? %)]</td>
+	<td>[?e  :bday (bday-mo? ?bd)]</td>
+	<td>[#(= % %) #(= % :bday) #(bday-mo? %)]</td>
 	<td>["?e" nil "?bd"]
 </td>
 </tr>
@@ -918,10 +936,10 @@ and the following structure in \aosatblref{500l.functionaldb.clauses} for the `:
 \hline
 \textbf{Query Clause} & \textbf{Predicate Clause} & \textbf{Meta Clause} \\
 \hline
-\verb|[?e  :likes "pizza"]| & \verb|[#(= % %)  #(= % :likes)  #(= % "pizza")]| & \verb|["?e" nil nil]| \\
-\verb|[?e  :name  ?nm]| & \verb|[#(= % %)  #(= % :name) #(= % %)]| & \verb|["?e" nil "?nm"]| \\
-\verb|[?e  :speak "English"]| & \verb|[#(= % %) #(= % :speak) #(= % "English")]| & \verb|["?e" nil nil]| \\
-\verb|[?e  :birthday (birthday-this-month? ?bd)]| & \verb|[#(= % %) #(= % :birthday) #(birthday-this-month? %)]| & \verb|["?e" nil "?bd"]| \\
+\verb|[?e  :likes "pizza"]| & \verb|[#(= % %)  #(= % :likes)  #(= % "pizza")]| & \verb|["?e" nil nil]| \\
+\verb|[?e  :name  ?nm]| & \verb|[#(= % %)  #(= % :name) #(= % %)]| & \verb|["?e" nil "?nm"]| \\
+\verb|[?e  :speak "English"]| & \verb|[#(= % %) #(= % :speak) #(= % "English")]| & \verb|["?e" nil nil]| \\
+\verb|[?e  :bday (bday-mo? ?bd)]| & \verb|[#(= % %) #(= % :bday) #(bday-mo? %)]| & \verb|["?e" nil "?bd"]| \\
 \hline
 \end{tabular}
 }
@@ -986,7 +1004,7 @@ Locating the index of the joining variable is done by `index-of-joining-variable
          collapsed (reduce collapsing-fn metas-seq)] 
      (first (keep-indexed #(when (variable? %2 false) %1)  collapsed)))) 
 ```
-We begin by extracting the metadata of each clause in the query. This extracted metadata is a 3-element vector; each element in the vector is either a variable name or nil. (Note that there is no more than one variable name in that vector.) Once the vector is extracted, we produce from it (by reducing it) a single value, which is either a variable name or nil. If a variable name is produced, then it appeared in all of the metadata vectors at the same index; i.e., this is the joining variable. We can thus choose to use the index relevant for this joining variable based on the mapping described above.
+We begin by extracting the metadata of each clause in the query. This extracted metadata is a 3-element vector; each element is either a variable name or nil. (Note that there is no more than one variable name in that vector.) Once the vector is extracted, we produce from it (by reducing it) a single value, which is either a variable name or nil. If a variable name is produced, then it appeared in all of the metadata vectors at the same index; i.e., this is the joining variable. We can thus choose to use the index relevant for this joining variable based on the mapping described above.
 
 Once the index is chosen, we construct our plan, which is a function that closes over the query and the index name and executes the operations necessary to return the query results.
  
@@ -1002,7 +1020,7 @@ In our example the chosen index is the `AVET` index, as the joining variable act
 
 #### Phase 3: Execution of the Plan
 
-We saw in the previous phase that the query plan we construct ends by calling `single-index-query-plan`. This function will:
+We saw in the previous phase that our query plan ends by calling `single-index-query-plan`. This function will:
 
 1. Apply each predicate clause on an index (each predicate on its appropriate index level).
 2. Perform an AND operation across the results.
@@ -1027,7 +1045,7 @@ To better explain this process we'll demonstrate it using our exemplary query, a
 	<td>:name </br>
 		:likes</br>
 		:speak</br>
-		:birthday 
+		:bday 
 	</td>
 	<td>USA</br>
 		Pizza</br>
@@ -1040,7 +1058,7 @@ To better explain this process we'll demonstrate it using our exemplary query, a
 	<td>:name </br>
 		:likes</br>
 		:speak</br>
-		:birthday 
+		:bday 
 	</td>
 	<td>France</br>
 		Red wine</br>
@@ -1053,7 +1071,7 @@ To better explain this process we'll demonstrate it using our exemplary query, a
 	<td>:name </br>
 		:likes</br>
 		:speak</br>
-		:birthday 
+		:bday 
 	</td>
 	<td>Canada</br>
 		Snow</br>
@@ -1061,8 +1079,8 @@ To better explain this process we'll demonstrate it using our exemplary query, a
 		July 1, 1867
 	</td>
 </tr>
-</table>
-: \label{500l.functionaldb.exampleentities}
+</table> 
+: \label{500l.functionaldb.exampleentities} Example entities
 </markdown>
 <latex>
 \begin{table}
@@ -1073,9 +1091,9 @@ To better explain this process we'll demonstrate it using our exemplary query, a
 \hline
 \textbf{Entity ID} & \textbf{Attribute Name} & \textbf{Attribute Value} \\
 \hline
-1 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:birthday| \end{tabular} & \begin{tabular}{@{}l@{}} USA \\ Pizza \\ English \\ July 4, 1776 \end{tabular} \\
-2 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:birthday| \end{tabular} & \begin{tabular}{@{}l@{}} France \\ Red wine \\ French \\ July 14, 1789 \end{tabular} \\
-3 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:birthday| \end{tabular} & \begin{tabular}{@{}l@{}} Canada \\ Snow \\ English \\ July 1, 1867 \end{tabular} \\
+1 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:bday| \end{tabular} & \begin{tabular}{@{}l@{}} USA \\ Pizza \\ English \\ July 4, 1776 \end{tabular} \\
+2 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:bday| \end{tabular} & \begin{tabular}{@{}l@{}} France \\ Red wine \\ French \\ July 14, 1789 \end{tabular} \\
+3 & \begin{tabular}{@{}l@{}} \verb|:name| \\ \verb|:likes| \\ \verb|:speak| \\ \verb|:bday| \end{tabular} & \begin{tabular}{@{}l@{}} Canada \\ Snow \\ English \\ July 1, 1867 \end{tabular} \\
 \hline
 \end{tabular}
 }
@@ -1091,7 +1109,8 @@ Now it is time to go deeper into the rabbit hole and take a look at the `query-i
    (let [result-clauses (filter-index index pred-clauses)
          relevant-items (items-that-answer-all-conditions (map last result-clauses) 
                                                           (count pred-clauses))
-         cleaned-result-clauses (map (partial mask-path-leaf-with-items relevant-items)
+         cleaned-result-clauses (map (partial mask-path-leaf-with-items 
+                                              relevant-items)
                                      result-clauses)] 
      (filter #(not-empty (last %)) cleaned-result-clauses)))
 ```
@@ -1132,22 +1151,22 @@ Assuming the query was executed on July 4th, the results of executing it on the 
 <td>[:speak "English" #{1, 3}]</td><td>["?e" nil nil]</td>
 </tr>
 <tr>
-<td>[:birthday "July 4, 1776" #{1}]</td><td>["?e" nil "?bd"]</td>
+<td>[:bday "July 4, 1776" #{1}]</td><td>["?e" nil "?bd"]</td>
 </tr>
 <tr>
 <td>[:name France #{2}]</td><td>["?e" nil "?nm"]</td>
 </tr>
 <tr>
-<td>[:birthday "July 14, 1789" #{2}]</td><td>["?e" nil "?bd"]</td>
+<td>[:bday "July 14, 1789" #{2}]</td><td>["?e" nil "?bd"]</td>
 </tr>
 <tr>
 <td>[:name Canada #{3}]</td><td>["?e" nil "?nm"]</td>
 </tr>
 <tr>
-<td>[:birthday "July 1, 1867" {3}]</td><td>["?e" nil "?bd"]</td>
+<td>[:bday "July 1, 1867" {3}]</td><td>["?e" nil "?bd"]</td>
 </tr>
 </table>
-: \label{500l.functionaldb.queryresults}
+: \label{500l.functionaldb.queryresults} Query results
 </markdown>
 <latex>
 \begin{table}
@@ -1161,11 +1180,11 @@ Assuming the query was executed on July 4th, the results of executing it on the 
 \verb|[:likes Pizza #{1}]| & \verb|["?e" nil nil]| \\
 \verb|[:name USA #{1}]| & \verb|["?e" nil "?nm"]| \\
 \verb|[:speak "English" #{1, 3}]| & \verb|["?e" nil nil]| \\
-\verb|[:birthday "July 4, 1776" #{1}]| & \verb|["?e" nil "?bd"]| \\
+\verb|[:bday "July 4, 1776" #{1}]| & \verb|["?e" nil "?bd"]| \\
 \verb|[:name France #{2}]| & \verb|["?e" nil "?nm"]| \\
-\verb|[:birthday "July 14, 1789" #{2}]| & \verb|["?e" nil "?bd"]| \\
+\verb|[:bday "July 14, 1789" #{2}]| & \verb|["?e" nil "?bd"]| \\
 \verb|[:name Canada #{3}]| & \verb|["?e" nil "?nm"]| \\
-\verb|[:birthday "July 1, 1867" {3}]| & \verb|["?e" nil "?bd"]| \\
+\verb|[:bday "July 1, 1867" {3}]| & \verb|["?e" nil "?bd"]| \\
 \hline
 \end{tabular}
 }
@@ -1181,7 +1200,7 @@ Once we have produced all of the result clauses, we need to perform an `AND` ope
    (->> items-seq ; take the items-seq
          (map vec) ; make each collection (actually a set) into a vector
          (reduce into []) ;reduce all the vectors into one vector
-         (frequencies) ; count for each item in how many collections (sets) it was in
+         (frequencies) ;count for each item in how many collections (sets) it was in
          (filter #(<= num-of-conditions (last %))) ;items that answered all conditions
          (map first) ; take from the duos the items themselves
          (set))) ; return it as set
@@ -1196,7 +1215,7 @@ We now have to remove the items that didn’t pass all of the conditions:
      (update-in path [2] CS/intersection relevant-items))
 ```
 
-Finally, we remove all of the result clauses that are "empty" (i.e., their last item is empty). We do this in the last line of the `query-index` function. Our example leaves us with the items in \aosatblref{500.functionaldb.filteredqueryresults}.
+Finally, we remove all of the result clauses that are "empty" (i.e., their last item is empty). We do this in the last line of the `query-index` function. Our example leaves us with the items in \aosatblref{500l.functionaldb.filteredqueryresults}.
 
 <markdown>
 <table>
@@ -1210,13 +1229,13 @@ Finally, we remove all of the result clauses that are "empty" (i.e., their last 
 <td>[:name USA #{1}]</td><td>["?e" nil "?nm"]</td>
 </tr>
 <tr>
-<td>[:birthday "July 4, 1776" #{1}]</td><td>["?e" nil "?bd"]</td>
+<td>[:bday "July 4, 1776" #{1}]</td><td>["?e" nil "?bd"]</td>
 </tr>
 <tr>
 <td>[:speak "English" #{1}]</td><td>["?e" nil nil]</td>
 </tr>
 </table>
-: \label{500l.functionaldb.filteredqueryresults}
+: \label{500l.functionaldb.filteredqueryresults} Filtered query results
 </markdown>
 <latex>
 \begin{table}
@@ -1229,7 +1248,7 @@ Finally, we remove all of the result clauses that are "empty" (i.e., their last 
 \hline
 \verb|[:likes Pizza #{1}]| & \verb|["?e" nil nil]| \\
 \verb|[:name USA #{1}]| & \verb|["?e" nil "?nm"]| \\ 
-\verb|[:birthday "July 4, 1776" #{1}]| & \verb|["?e" nil "?bd"]| \\
+\verb|[:bday "July 4, 1776" #{1}]| & \verb|["?e" nil "?bd"]| \\
 \verb|[:speak "English" #{1}]| & \verb|["?e" nil nil]| \\
 \hline
 \end{tabular}
@@ -1239,7 +1258,7 @@ Finally, we remove all of the result clauses that are "empty" (i.e., their last 
 \end{table}
 </latex>
 
-We are now ready to report the results. The result clause structure is unwieldy for this purpose, so we will convert it into an an index-like structure (map of maps) --- with a significant twist. 
+We are now ready to report the results. The result clause structure is unwieldy for this purpose, so we will convert it into an an index-like structure (map of maps)&mdash;with a significant twist. 
 
 To understand the twist, we must first introduce the idea of a _binding pair_, which is a pair that matches a variable name to its value. The variable name is the one used at the predicate clauses, and the value is the value found in the result clauses.
 
@@ -1247,7 +1266,8 @@ The twist to the index structure is that now we hold a binding pair of the entit
 
 ```clojure
 (defn bind-variables-to-query [q-res index]
-   (let [seq-res-path (mapcat (partial combine-path-and-meta (from-eav index)) q-res)         
+   (let [seq-res-path (mapcat (partial combine-path-and-meta (from-eav index)) 
+                               q-res)         
          res-path (map #(->> %1 (partition 2)(apply (to-eav index))) seq-res-path)] 
      (reduce #(assoc-in %1  (butlast %2) (last %2)) {} res-path)))
      
@@ -1260,12 +1280,12 @@ The twist to the index structure is that now we hold a binding pair of the entit
 
 At the end of phase 3 of our example execution, we have the following structure at hand:
 ```clojure
- {[1 "?e"] {
-		[:likes nil]    ["Pizza" nil]
-        [:name nil]     ["USA" "?nm"]
-        [:speaks nil]   ["English" nil] 
-		[:birthday nil] ["July 4, 1776" "?bd"]} 
-	}}
+{[1 "?e"]{ 
+	{[:likes nil]    ["Pizza" nil]}
+	{[:name nil]     ["USA" "?nm"]}
+	{[:speaks nil]   ["English" nil]} 
+	{[:bday nil] ["July 4, 1776" "?bd"]} 
+}}
 ```
 
 #### Phase 4: Unify and Report
@@ -1304,11 +1324,11 @@ We've finally built all of the components we need for our user-facing query mech
 ```clojure
 (defmacro q
   [db query]
-  `(let [pred-clauses#  (q-clauses-to-pred-clauses ~(:where query)) ; transforming the clauses of the query to an internal representation structure called query-clauses
-           needed-vars# (symbol-col-to-set  ~(:find query))  ; extracting from the query the variables that needs to be reported out as a set
-           query-plan# (build-query-plan pred-clauses#) ; extracting a query plan based on the query-clauses
-           query-internal-res# (query-plan# ~db)] ;executing the plan on the database
-     (unify query-internal-res# needed-vars#)));unifying the query result with the needed variables to report out what the user asked for
+  `(let [pred-clauses#  (q-clauses-to-pred-clauses ~(:where query)) 
+         needed-vars# (symbol-col-to-set  ~(:find query))
+         query-plan# (build-query-plan pred-clauses#)
+         query-internal-res# (query-plan# ~db)]
+     (unify query-internal-res# needed-vars#)))
 ```  
 ## Summary
 

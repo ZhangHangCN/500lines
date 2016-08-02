@@ -14,19 +14,28 @@ def main(chapters=[], epub=False, pdf=False, html=False, mobi=False, pandoc_epub
             run('rm {}'.format(f))
 
     chapter_dirs = [
-        'static-analysis',
-        'functionalDB',
+        'blockcode',
+        'ci',
+        'cluster',
+        'contingent',
+        'crawler',
+        'dagoba',
+        'data-store',
+        'event-web-framework',
         'flow-shop',
-        'template-engine',
+        'functionalDB',
+        'image-filters',
+        'interpreter',
+        'modeller',
+        'objmodel',
+        'ocr',
         'pedometer',
+        'same-origin-policy',
         'sampler',
         'spreadsheet',
-        'cluster',
-        'data-store',
-        'objmodel',
-        'ci',
-        'crawler',
-        'modeller',
+        'static-analysis',
+        'template-engine',
+        'web-server',
     ]
     if len(chapters) > 0:
         chapter_dirs = [
@@ -62,20 +71,27 @@ def main(chapters=[], epub=False, pdf=False, html=False, mobi=False, pandoc_epub
     ]
 
     image_paths = [
-        './functionalDB/functionalDB-images',
+        './blockcode/blockcode-images',
+        './ci/ci-images',
+        './cluster/cluster-images',
+        './contingent/contingent-images',
+        './crawler/crawler-images',
+        './data-store/data-store-images',
         './flow-shop/flow-shop-images',
+        './functionalDB/functionalDB-images',
+        './image-filters/image-filters-images',
+        './interpreter/interpreter-images',
+        './modeller/modeller-images',
+        './objmodel/objmodel-images',
+        './ocr/ocr-images',
         './pedometer/pedometer-images',
+        './same-origin-policy/same-origin-policy-images',
         './sampler/sampler-images',
         './spreadsheet/spreadsheet-images',
-        './cluster/cluster-images',
-        './data-store/data-store-images',
-        './objmodel/objmodel-images',
-        './ci/ci-images',
-        './crawler/crawler-images',
-        './modeller/modeller-images',
+        './web-server/web-server-images',
         ]
 
-    run('cp -r minutiae/ tex')
+    run('cp -r minutiae/pdf/ tex')
 
     with open('tex/500L.tex', 'w') as out:
         with open('tex/500L.template.tex') as template:
@@ -93,7 +109,6 @@ def main(chapters=[], epub=False, pdf=False, html=False, mobi=False, pandoc_epub
 
     if pdf:
         for imgpath in image_paths:
-            # This is silly but oh well
             run('cp -a {imgpath} tex/'.format(imgpath=imgpath))
         for chapter_markdown in process_chapters:
             pandoc_cmd(chapter_markdown)
@@ -101,8 +116,8 @@ def main(chapters=[], epub=False, pdf=False, html=False, mobi=False, pandoc_epub
 
     if epub:
         for imgpath in image_paths:
-            # This is silly but oh well
             run('cp -a {imgpath} epub/'.format(imgpath=imgpath))
+        run('cp minutiae/html/introduction.md epub/introduction.markdown')
         build_epub(process_chapters, pandoc_epub)
 
     if mobi and not epub:
@@ -113,20 +128,14 @@ def main(chapters=[], epub=False, pdf=False, html=False, mobi=False, pandoc_epub
 
     if html:
         for imgpath in image_paths:
-            # This is silly but oh well
             run('cp -a {imgpath} html/content/pages/'.format(imgpath=imgpath))
+        run('cp minutiae/html/introduction.md html/content/pages/.')
         build_html(process_chapters)
         for imgpath in image_paths:
-            # So you thought that was silly? Lemme show ya
             run('cp -a {imgpath} html/output/pages/'.format(imgpath=imgpath))
-
 
 def build_pdf():
     os.chdir('tex')
-    run('pdflatex -interaction nonstopmode 500L')
-    run('bibtex 500L')
-    run('pdflatex -interaction nonstopmode 500L')
-    run('pdflatex -interaction nonstopmode 500L')
     run('pdflatex -interaction nonstopmode 500L')
     os.chdir('..')
     run('mv tex/500L.pdf output/')
@@ -153,24 +162,24 @@ def build_epub(chapter_markdowns, pandoc_epub):
     if pandoc_epub:
         run(cmd.format(pandoc=pandoc_path, markdowns=' '.join(basenames)))
         print cmd.format(pandoc=pandoc_path, markdowns=' '.join(basenames))
-    import subprocess as sp
-    output = ' '.join(open('image-list.txt').read().splitlines())
-    print 'zip 500L.epub META-INF mimetype nav.xhtml toc.ncx stylesheet.css content.opf ' + output
-    sp.check_output(
-        'zip 500L.epub META-INF mimetype nav.xhtml toc.ncx stylesheet.css content.opf ' + output,
-        shell=True)
-    if os.path.isdir('tmp-epub-contents'):
-        run('rm -r tmp-epub-contents')
-    os.mkdir('tmp-epub-contents')
-    sp.check_output(
-        'unzip 500L.epub -d tmp-epub-contents/',
-        shell=True,
-    )
-    sp.check_output(
-        'rsync -a tmp-epub-contents/* ./',
-        shell=True
-    )
-    run('rm -r tmp-epub-contents')
+#    import subprocess as sp
+#    output = ' '.join(open('image-list.txt').read().splitlines())
+#    print 'zip 500L.epub META-INF mimetype nav.xhtml toc.ncx stylesheet.css content.opf ' + output
+#    sp.check_output(
+#        'zip 500L.epub META-INF mimetype nav.xhtml toc.ncx stylesheet.css content.opf ' + output,
+#        shell=True)
+#    if os.path.isdir('tmp-epub-contents'):
+#        run('rm -r tmp-epub-contents')
+#    os.mkdir('tmp-epub-contents')
+#    sp.check_output(
+#        'unzip 500L.epub -d tmp-epub-contents/',
+#        shell=True,
+#    )
+#    sp.check_output(
+#        'rsync -a tmp-epub-contents/* ./',
+#        shell=True
+#    )
+#    run('rm -r tmp-epub-contents')
     run('cp 500L.epub ../output/500L.epub')
     os.chdir('..')
 
@@ -181,8 +190,8 @@ def build_mobi():
 
 def build_html(chapter_markdowns):
     run('mkdir -p html/content/pages')
-    temp = 'python _build/preprocessor.py --chapter {chap} --html-refs --html-paths --output={md}.1 --latex {md}'
-    temp2 = 'pandoc --csl=minutiae/ieee.csl --bibliography=tex/500L.bib -t html -f markdown+citations -o html/content/pages/{basename}.md {md}.1'
+    temp = 'python _build/preprocessor.py --chapter {chap} --html-refs --output={md}.1 --latex {md}'
+    temp2 = 'pandoc --csl=minutiae/pdf/ieee.csl --mathjax -t html -f markdown+citations -o html/content/pages/{basename}.md {md}.1'
     temp3 = './_build/fix_html_title.sh html/content/pages/{basename}.md'
     for i, markdown in enumerate(chapter_markdowns):
         basename = os.path.splitext(os.path.split(markdown)[1])[0]
